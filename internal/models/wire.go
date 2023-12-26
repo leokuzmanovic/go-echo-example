@@ -8,7 +8,7 @@ func Wire() {
 	var booksRepository BooksRepository = NewBooksRepositoryImpl()
 	di.Register(booksRepository)
 
-	var tokensRepository TokensRepository = NewTokensRepositoryImpl()
+	var tokensRepository RefreshTokensRepository = NewRefreshTokensRepositoryImpl()
 	di.Register(tokensRepository)
 
 	var usersRepository UsersRepository = NewUsersRepositoryImpl()

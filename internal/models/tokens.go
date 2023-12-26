@@ -6,39 +6,40 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-type TokenData struct {
-	Id     string
-	Token  string
-	UserId uuid.UUID
+type RefreshTokenData struct {
+	Id           string
+	RefreshToken string
+	UserId       uuid.UUID
 }
 
-type TokensRepository interface {
+//go:generate mockery --name RefreshTokensRepository
+type RefreshTokensRepository interface {
 	Create(ctx context.Context, id, refreshToken string, userId uuid.UUID) error
-	Get(ctx context.Context, id string) (*TokenData, error)
+	Get(ctx context.Context, id string) (*RefreshTokenData, error)
 	Delete(ctx context.Context, id string) error
 	DeleteByUserID(ctx context.Context, userID uuid.UUID) error
 }
 
-type TokensRepositoryImpl struct {
-	tokenStore map[string]TokenData
+type RefreshTokensRepositoryImpl struct {
+	tokenStore map[string]RefreshTokenData
 }
 
-func NewTokensRepositoryImpl() *TokensRepositoryImpl {
-	p := new(TokensRepositoryImpl)
-	p.tokenStore = make(map[string]TokenData)
+func NewRefreshTokensRepositoryImpl() *RefreshTokensRepositoryImpl {
+	p := new(RefreshTokensRepositoryImpl)
+	p.tokenStore = make(map[string]RefreshTokenData)
 	return p
 }
 
-func (s *TokensRepositoryImpl) Create(ctx context.Context, id, refreshToken string, userId uuid.UUID) error {
-	s.tokenStore[id] = TokenData{
-		Id:     id,
-		Token:  refreshToken,
-		UserId: userId,
+func (s *RefreshTokensRepositoryImpl) Create(ctx context.Context, id, refreshToken string, userId uuid.UUID) error {
+	s.tokenStore[id] = RefreshTokenData{
+		Id:           id,
+		RefreshToken: refreshToken,
+		UserId:       userId,
 	}
 	return nil
 }
 
-func (s *TokensRepositoryImpl) Get(ctx context.Context, id string) (*TokenData, error) {
+func (s *RefreshTokensRepositoryImpl) Get(ctx context.Context, id string) (*RefreshTokenData, error) {
 	token, ok := s.tokenStore[id]
 	if !ok {
 		return nil, ErrNotFound
@@ -47,12 +48,12 @@ func (s *TokensRepositoryImpl) Get(ctx context.Context, id string) (*TokenData, 
 	return &token, nil
 }
 
-func (s *TokensRepositoryImpl) Delete(ctx context.Context, id string) error {
+func (s *RefreshTokensRepositoryImpl) Delete(ctx context.Context, id string) error {
 	delete(s.tokenStore, id)
 	return nil
 }
 
-func (s *TokensRepositoryImpl) DeleteByUserID(ctx context.Context, userId uuid.UUID) error {
+func (s *RefreshTokensRepositoryImpl) DeleteByUserID(ctx context.Context, userId uuid.UUID) error {
 	for _, token := range s.tokenStore {
 		if token.UserId == userId {
 			delete(s.tokenStore, token.Id)

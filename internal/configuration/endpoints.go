@@ -8,11 +8,23 @@ import (
 type EndpointConfig struct {
 	PathPattern                     string
 	EndpointSecurityConfigPerMethod map[string]EndpointSecurityConfig
-	MetricsEnabled                  bool
+	MetricsDisabled                 bool
 }
 
 type EndpointSecurityConfig struct {
-	NoAuthRequired bool // by default, auth is required
+	NoAuthRequired bool // by default, auth is required (false)
+}
+
+//go:generate mockery --name EndpointsConfigService
+type EndpointsConfigService interface {
+	IsAuthRequired(path, method string) bool
+	AreMetricsEnabled(path string) bool
+}
+
+type EndpointsConfigServiceImpl struct{}
+
+func NewEndpointsConfigService() *EndpointsConfigServiceImpl {
+	return &EndpointsConfigServiceImpl{}
 }
 
 // BY DEFAULT, authentication and metrics are required/enabled on all endpoints - unless explicitly configured otherwise
@@ -34,24 +46,37 @@ var endpointsConfig []EndpointConfig = []EndpointConfig{
 		EndpointSecurityConfigPerMethod: map[string]EndpointSecurityConfig{
 			"GET": {NoAuthRequired: true},
 		},
-		MetricsEnabled: false,
+		MetricsDisabled: true,
 	},
 	{
 		PathPattern: "\\/swagger.+", // regex: /swagger/*
 		EndpointSecurityConfigPerMethod: map[string]EndpointSecurityConfig{
-			"GET": {NoAuthRequired: true},
+			"GET": {NoAuthRequired: true}, // swagger has its own basic auth by default
 		},
-		MetricsEnabled: false,
+		MetricsDisabled: true,
 	},
 	{
-		PathPattern: "\\/login$", // regex: /login
+		PathPattern: "\\/swagger", // regex: /swagger/*
+		EndpointSecurityConfigPerMethod: map[string]EndpointSecurityConfig{
+			"GET": {NoAuthRequired: true}, // swagger has its own basic auth by default
+		},
+		MetricsDisabled: true,
+	},
+	{
+		PathPattern: "\\/auth\\/login$", // regex: /auth/login
+		EndpointSecurityConfigPerMethod: map[string]EndpointSecurityConfig{
+			"POST": {NoAuthRequired: true},
+		},
+	},
+	{
+		PathPattern: "\\/auth\\/token$", // regex: /auth/token
 		EndpointSecurityConfigPerMethod: map[string]EndpointSecurityConfig{
 			"POST": {NoAuthRequired: true},
 		},
 	},
 }
 
-func IsAuthRequired(path, method string) bool {
+func (s *EndpointsConfigServiceImpl) IsAuthRequired(path, method string) bool {
 	for _, endpointConfig := range endpointsConfig {
 		match, _ := regexp.MatchString(endpointConfig.PathPattern, strings.ToLower(path))
 		if match {
@@ -64,11 +89,11 @@ func IsAuthRequired(path, method string) bool {
 	return true
 }
 
-func AreMetricsEnabled(path string) bool {
+func (s *EndpointsConfigServiceImpl) AreMetricsEnabled(path string) bool {
 	for _, endpointConfig := range endpointsConfig {
 		match, _ := regexp.MatchString(endpointConfig.PathPattern, strings.ToLower(path))
 		if match {
-			return endpointConfig.MetricsEnabled
+			return !endpointConfig.MetricsDisabled
 		}
 	}
 

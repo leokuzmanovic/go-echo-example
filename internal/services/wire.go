@@ -8,16 +8,16 @@ import (
 
 func Wire() {
 	booksRepository := di.Get[models.BooksRepository]()
-	tokensRepository := di.Get[models.TokensRepository]()
+	refreshTokensRepository := di.Get[models.RefreshTokensRepository]()
 	usersRepository := di.Get[models.UsersRepository]()
 	var appConfig *configuration.AppConfig = di.Get[*configuration.AppConfig]()
 
 	var booksService BooksService = NewBooksServiceImpl(booksRepository)
 	di.Register(booksService)
 
-	var tokensService TokensService = NewTokensServiceImpl(appConfig.GetPrivateKey(), appConfig.GetPublicKey(), tokensRepository, usersRepository)
+	var tokensService TokensService = NewTokensServiceImpl(appConfig.GetPrivateKey(), appConfig.GetPublicKey(), refreshTokensRepository, usersRepository)
 	di.Register(tokensService)
 
-	var authService AuthService = NewAuthServiceImpl(usersRepository, tokensRepository, tokensService)
+	var authService AuthService = NewAuthServiceImpl(usersRepository, refreshTokensRepository, tokensService)
 	di.Register(authService)
 }

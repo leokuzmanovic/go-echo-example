@@ -7,6 +7,7 @@ import (
 	"github.com/leokuzmanovic/go-echo-example/internal/models"
 )
 
+//go:generate mockery --name BooksService
 type BooksService interface {
 	CreateBook(ctx context.Context, title, author string) (*models.Book, error)
 	GetBookById(ctx context.Context, id string) (*models.Book, error)

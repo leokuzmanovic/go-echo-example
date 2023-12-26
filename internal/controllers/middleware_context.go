@@ -16,8 +16,9 @@ func (s *ContextEnricherMiddleware) Apply(e *echo.Echo) {
 
 func (s *ContextEnricherMiddleware) Handle(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
-		// NOTE: use this middleware to enrich the context with data from the request
 		/*
+			NOTE: use this middleware to enrich the context with data from the request, i.e.:
+
 			r := ctx.Request()
 			r = r.WithContext(context.WithValue(r.Context(), "someKey", "someValue"))
 			ctx.SetRequest(r)

@@ -7,6 +7,7 @@ import (
 	errs "github.com/leokuzmanovic/go-echo-example/internal/errors"
 	"github.com/leokuzmanovic/go-echo-example/internal/models"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/guregu/null.v4"
 )
 
@@ -15,6 +16,7 @@ const (
 	UsernameOptimalGeneratedLength = 20
 )
 
+//go:generate mockery --name AuthService
 type AuthService interface {
 	Login(ctx context.Context, username, password string) (null.String, null.String, error)
 	Logout(ctx context.Context, refreshToken string) error
@@ -22,16 +24,16 @@ type AuthService interface {
 }
 
 type AuthServiceImpl struct {
-	tokensService    TokensService
-	usersRepository  models.UsersRepository
-	tokensRepository models.TokensRepository
+	tokensService           TokensService
+	usersRepository         models.UsersRepository
+	refreshTokensRepository models.RefreshTokensRepository
 }
 
-func NewAuthServiceImpl(usersRepository models.UsersRepository, tokensRepository models.TokensRepository, tokensService TokensService) *AuthServiceImpl {
+func NewAuthServiceImpl(usersRepository models.UsersRepository, refreshTokensRepository models.RefreshTokensRepository, tokensService TokensService) *AuthServiceImpl {
 	p := new(AuthServiceImpl)
 	p.usersRepository = usersRepository
 	p.tokensService = tokensService
-	p.tokensRepository = tokensRepository
+	p.refreshTokensRepository = refreshTokensRepository
 	return p
 }
 
@@ -48,7 +50,7 @@ func (s *AuthServiceImpl) Login(ctx context.Context, username, password string) 
 		return null.String{}, null.String{}, &errs.InvalidCredentialsError{}
 	}
 
-	accessToken, refreshToken, err := s.tokensService.GetTokens(ctx, user.Id)
+	accessToken, refreshToken, err := s.tokensService.CreateNewTokens(ctx, user.Id)
 	return accessToken, refreshToken, err
 }
 
@@ -58,7 +60,7 @@ func (s *AuthServiceImpl) Logout(ctx context.Context, refreshToken string) error
 		return &errs.AuthorizationError{}
 	}
 
-	tokenData, err := s.tokensRepository.Get(ctx, id)
+	tokenData, err := s.refreshTokensRepository.Get(ctx, id)
 	if err != nil {
 		if errors.Is(err, models.ErrNotFound) {
 			return &errs.BadRequestError{}
@@ -66,11 +68,12 @@ func (s *AuthServiceImpl) Logout(ctx context.Context, refreshToken string) error
 		return errors.Wrap(err, "db")
 	}
 
-	if tokenData.Token != token {
+	err = bcrypt.CompareHashAndPassword([]byte(tokenData.RefreshToken), []byte(token))
+	if err != nil {
 		return &errs.BadRequestError{}
 	}
 
-	err = errors.Wrap(s.tokensRepository.Delete(ctx, id), "db")
+	err = errors.Wrap(s.refreshTokensRepository.Delete(ctx, id), "db")
 	return err
 }
 
@@ -80,7 +83,7 @@ func (s *AuthServiceImpl) RefreshToken(ctx context.Context, refreshToken string)
 		return null.String{}, null.String{}, &errs.AuthorizationError{}
 	}
 
-	tokenData, err := s.tokensRepository.Get(ctx, id)
+	tokenData, err := s.refreshTokensRepository.Get(ctx, id)
 	if err != nil {
 		if errors.Is(err, models.ErrNotFound) {
 			return null.String{}, null.String{}, &errs.AuthorizationError{}
@@ -89,11 +92,12 @@ func (s *AuthServiceImpl) RefreshToken(ctx context.Context, refreshToken string)
 	}
 	userId := tokenData.UserId
 
-	if tokenData.Token != token {
+	err = bcrypt.CompareHashAndPassword([]byte(tokenData.RefreshToken), []byte(token))
+	if err != nil {
 		return null.String{}, null.String{}, &errs.AuthorizationError{}
 	}
 
-	err = s.tokensRepository.Delete(ctx, id)
+	err = s.refreshTokensRepository.Delete(ctx, id)
 	if err != nil {
 		return null.String{}, null.String{}, err
 	}
@@ -103,7 +107,7 @@ func (s *AuthServiceImpl) RefreshToken(ctx context.Context, refreshToken string)
 		return null.String{}, null.String{}, err
 	}
 
-	at, rt, err := s.tokensService.GetTokens(ctx, user.Id)
+	at, rt, err := s.tokensService.CreateNewTokens(ctx, user.Id)
 	return at, rt, errors.Wrap(err, "auth")
 }
 

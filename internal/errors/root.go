@@ -8,6 +8,15 @@ import (
 )
 
 func GlobalErrorHandler(err error, c echo.Context) {
+	code, message, errorType := getErrorDetails(err)
+
+	_ = c.JSON(code, map[string]interface{}{
+		"message": message,
+		"type":    errorType,
+	})
+}
+
+func getErrorDetails(err error) (int, string, string) {
 	code := http.StatusInternalServerError
 	message := "Internal Server Error"
 	errorType := "InternalServerError"
@@ -25,11 +34,7 @@ func GlobalErrorHandler(err error, c echo.Context) {
 	} else {
 		// log error message taken from "err.Error()" but do not expose internal errors to the client
 	}
-
-	_ = c.JSON(code, map[string]interface{}{
-		"message": message,
-		"type":    errorType,
-	})
+	return code, message, errorType
 }
 
 type ErrorData struct {
@@ -41,6 +46,16 @@ type ErrorData struct {
 type AppError interface {
 	Error() string
 	GetErrorData() ErrorData
+}
+
+type InternalServerError struct{}
+
+func (s InternalServerError) Error() string {
+	return "InternalServerError"
+}
+
+func (s InternalServerError) GetErrorData() ErrorData {
+	return ErrorData{Type: "InternalServerError", Code: http.StatusInternalServerError, Message: "Internal Server Error"}
 }
 
 type InvalidJsonError struct{}
@@ -103,9 +118,5 @@ func (s InvalidCredentialsError) Error() string {
 }
 
 func (s InvalidCredentialsError) GetErrorData() ErrorData {
-	return ErrorData{
-		Type:    "InvalidCredentialsError",
-		Code:    http.StatusBadRequest,
-		Message: "Invalid credentials",
-	}
+	return ErrorData{Type: "InvalidCredentialsError", Code: http.StatusBadRequest, Message: "Invalid credentials"}
 }

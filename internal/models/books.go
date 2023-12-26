@@ -14,6 +14,7 @@ type Book struct {
 	CreatedAt time.Time
 }
 
+//go:generate mockery --name BooksRepository
 type BooksRepository interface {
 	Create(ctx context.Context, title, author string) (*Book, error)
 	GetById(ctx context.Context, id string) (*Book, error)

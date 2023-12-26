@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/leokuzmanovic/go-echo-example/api"
 	"github.com/leokuzmanovic/go-echo-example/internal"
 	"github.com/leokuzmanovic/go-echo-example/internal/configuration"
 	"github.com/leokuzmanovic/go-echo-example/internal/controllers"
@@ -18,6 +19,7 @@ func main() {
 		setup: data stores, cache, profiling etc...
 		register these dependencies to DI container
 	*/
+
 	// using hardcoded configuration for now
 	config := &configuration.AppConfig{}
 	di.Register(config)
@@ -30,7 +32,8 @@ func main() {
 	controllers.WireControllers(e)
 
 	//start prometheus server
-	eProm := metrics.SetupPrometheusServer(e, config.GetPrometheusUsername(), config.GetPrometheusPassword())
+	endpointsConfigService := di.Get[configuration.EndpointsConfigService]()
+	eProm := metrics.SetupPrometheusServer(e, config.GetPrometheusUsername(), config.GetPrometheusPassword(), endpointsConfigService)
 	go func() {
 		eProm.Logger.Fatal(eProm.Start(":9090"))
 	}()
@@ -48,5 +51,5 @@ func wireCors(e *echo.Echo) {
 
 func prepareSwagger(e *echo.Echo, username, password string) {
 	middlewareFunc := utils.PrepareBasicAuthenticationMiddleware(username, password)
-	e.GET("/swagger/*", echoSwagger.WrapHandler, middlewareFunc)
+	e.GET(api.ENDPOINT_SWAGGER+"/*", echoSwagger.WrapHandler, middlewareFunc)
 }

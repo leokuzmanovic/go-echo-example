@@ -33,9 +33,9 @@ func wireBooks(e *echo.Echo) {
 // @Router /books [POST]
 // @Param body body api.CreateBookRequest true "CreateBookRequest"
 // @Success 201
-// @Failure 400 {object} utils.ApiError "BadRequestError, FormValidationError, InvalidCredentialsError"
-// @Failure 403 {object} utils.ApiError "ForbiddenError"
-// @Failure 404 {object} utils.ApiError "NotFoundError"
+// @Failure 400 {object} errors.AppError "BadRequestError, InvalidJsonError, InvalidCredentialsError"
+// @Failure 403 {object} errors.AppError "AuthorizationError"
+// @Failure 404 {object} errors.AppError "NotFoundError"
 */
 func (s *BooksController) createNew(ctx echo.Context, body *api.CreateBookRequest) error {
 	book, err := s.booksService.CreateBook(ctx.Request().Context(), body.Title, body.Author)
@@ -53,15 +53,15 @@ func (s *BooksController) createNew(ctx echo.Context, body *api.CreateBookReques
 }
 
 /*
-// @Summary List account roles
-// @Tags accountroleservice
-// @Router /accounts/{accountUUID}/roles [GET]
-// @Param accountUUID path string true "Account UUID"
+// @Summary Get book by id
+// @Tags books
+// @Router /books/{bookId} [GET]
+// @Param bookId path string true "book id"
 // @Produce json
-// @Success 200 {object} utils.Content "string"
-// @Success 400 {object} utils.ApiError "BadRequestError"
-// @Success 403 {object} utils.ApiError "ForbiddenError"
-// @Success 404 {object} utils.ApiError "NotFoundError"
+// @Success 200 {object} api.BookResponse
+// @Success 400 {object} errors.AppError "BadRequestError"
+// @Success 403 {object} errors.AppError "AuthorizationError"
+// @Success 404 {object} errors.AppError "NotFoundError"
 */
 func (s *BooksController) getById(ctx echo.Context) error {
 	bookId := ctx.Param("bookId")
@@ -71,7 +71,7 @@ func (s *BooksController) getById(ctx echo.Context) error {
 
 	book, err := s.booksService.GetBookById(ctx.Request().Context(), bookId)
 	if err != nil {
-		return errors.Wrap(err, "account")
+		return errors.Wrap(err, "books")
 	}
 
 	response := api.BookResponse{
@@ -84,20 +84,19 @@ func (s *BooksController) getById(ctx echo.Context) error {
 }
 
 /*
-// @Summary Delete account
-// @Tags account
-// @Router /accounts/{accountUUID} [DELETE]
-// @Param accountUUID path string true "Account UUID"
+// @Summary Delete book
+// @Tags books
+// @Router /books/{bookId} [DELETE]
+// @Param bookId path string true "book id"
 // @Success 200
-// @Failure 400 {object} utils.ApiError "BadRequestError, ContactCustomerSupportError"
-// @Failure 403 {object} utils.ApiError "ForbiddenError"
-// @Failure 404 {object} utils.ApiError "NotFoundError"
+// @Failure 400 {object} errors.AppError "BadRequestError"
+// @Failure 403 {object} errors.AppError "AuthorizationError"
+// @Failure 404 {object} errors.AppError "NotFoundError"
 */
 func (s *BooksController) delete(ctx echo.Context) error {
 	bookId := ctx.Param("bookId")
 	if bookId == "" {
-		return errors.New("book id not set")
-		//return &apierrors.BadRequestError{Message: "Unable to parse account uuid."}
+		return &errs.BadRequestError{}
 	}
 
 	err := s.booksService.DeleteBookById(ctx.Request().Context(), bookId)

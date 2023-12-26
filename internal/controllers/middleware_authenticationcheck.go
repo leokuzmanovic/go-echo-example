@@ -7,7 +7,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	api "github.com/leokuzmanovic/go-echo-example/api"
-	config "github.com/leokuzmanovic/go-echo-example/internal/configuration"
+	"github.com/leokuzmanovic/go-echo-example/internal/configuration"
 	"github.com/leokuzmanovic/go-echo-example/internal/constants"
 	errs "github.com/leokuzmanovic/go-echo-example/internal/errors"
 	"github.com/leokuzmanovic/go-echo-example/internal/services"
@@ -15,31 +15,36 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	HeaderAuthorizationBearer = "Bearer"
+)
+
 type (
 	AuthMiddleware struct {
-		tokensService services.TokensService
+		tokensService          services.TokensService
+		endpointsConfigService configuration.EndpointsConfigService
 	}
 )
 
-func NewAuthMiddleware(tokensService services.TokensService) *AuthMiddleware {
-	p := &AuthMiddleware{tokensService: tokensService}
+func NewAuthMiddleware(tokensService services.TokensService, endpointsConfigService configuration.EndpointsConfigService) *AuthMiddleware {
+	p := &AuthMiddleware{tokensService: tokensService, endpointsConfigService: endpointsConfigService}
 	return p
 }
 
 func (s *AuthMiddleware) Apply(e *echo.Echo) {
-	e.Use(s.AuthorizeRequest)
+	e.Use(s.CheckRequestAuthentication)
 }
 
-func (s *AuthMiddleware) AuthorizeRequest(next echo.HandlerFunc) echo.HandlerFunc {
+func (s *AuthMiddleware) CheckRequestAuthentication(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
 		r := ctx.Request()
 		sanitisedUri := utils.SanitizeUri(r.RequestURI)
 
-		if !config.IsAuthRequired(sanitisedUri, r.Method) {
+		if !s.endpointsConfigService.IsAuthRequired(sanitisedUri, r.Method) {
 			return next(ctx)
 		}
 
-		err := s.checkAuthentication(ctx, r, r.Header.Get(api.HeaderAuthorization))
+		err := s.checkAuthentication(ctx, r)
 		if err != nil {
 			return errors.Wrap(err, "auth")
 		}
@@ -47,8 +52,9 @@ func (s *AuthMiddleware) AuthorizeRequest(next echo.HandlerFunc) echo.HandlerFun
 	}
 }
 
-func (s *AuthMiddleware) checkAuthentication(ctx echo.Context, r *http.Request, header string) error {
-	token, err := checkToken(header, api.HeaderAuthorizationBearer)
+func (s *AuthMiddleware) checkAuthentication(ctx echo.Context, r *http.Request) error {
+	authenticationHeader := r.Header.Get(api.HeaderAuthorization)
+	token, err := getAuthenticationToken(authenticationHeader)
 	if err != nil {
 		return err
 	}
@@ -70,15 +76,12 @@ func (s *AuthMiddleware) checkAuthentication(ctx echo.Context, r *http.Request, 
 	return nil
 }
 
-func checkToken(header, tokenPrefix string) (string, error) {
-	if header == "" || !strings.HasPrefix(header, tokenPrefix) {
+func getAuthenticationToken(authenticationHeader string) (string, error) {
+	if authenticationHeader == "" || !strings.HasPrefix(authenticationHeader, HeaderAuthorizationBearer) {
 		return "", &errs.AuthorizationError{}
 	}
-	return getToken(header)
-}
 
-func getToken(header string) (string, error) {
-	headerValueParts := strings.Split(header, " ")
+	headerValueParts := strings.Split(authenticationHeader, " ")
 	if len(headerValueParts) != 2 {
 		return "", &errs.AuthorizationError{}
 	}

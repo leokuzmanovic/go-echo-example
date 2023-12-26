@@ -12,4 +12,5 @@ const (
 
 	ENDPOINT_HEALTH  = "/health"
 	ENDPOINT_METRICS = "/metrics"
+	ENDPOINT_SWAGGER = "/swagger"
 )

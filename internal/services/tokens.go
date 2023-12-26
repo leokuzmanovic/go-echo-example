@@ -4,9 +4,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/dchest/uniuri"
@@ -25,20 +23,20 @@ type TokenHeader struct {
 	Typ string `json:"typ"`
 }
 
+//go:generate mockery --name TokensService
 type TokensService interface {
-	CreateToken(claims *jwt.RegisteredClaims) (string, error)
-	GetTokens(ctx context.Context, userId uuid.UUID) (null.String, null.String, error)
+	CreateNewTokens(ctx context.Context, userId uuid.UUID) (null.String, null.String, error)
 	CheckToken(ctx context.Context, tokenString string) (uuid.UUID, bool, error)
 }
 
 type TokensServiceImpl struct {
 	privateKey      *rsa.PrivateKey
 	publicKey       *rsa.PublicKey
-	tokenRepository models.TokensRepository
+	tokenRepository models.RefreshTokensRepository
 	usersRepository models.UsersRepository
 }
 
-func NewTokensServiceImpl(encodedPrivateKey, encodedPublicKey string, tokensRepository models.TokensRepository, usersRepository models.UsersRepository) *TokensServiceImpl {
+func NewTokensServiceImpl(encodedPrivateKey, encodedPublicKey string, tokensRepository models.RefreshTokensRepository, usersRepository models.UsersRepository) *TokensServiceImpl {
 	p := new(TokensServiceImpl)
 	p.tokenRepository = tokensRepository
 	p.usersRepository = usersRepository
@@ -72,24 +70,13 @@ func NewTokensServiceImpl(encodedPrivateKey, encodedPublicKey string, tokensRepo
 	return p
 }
 
-func (s *TokensServiceImpl) CreateToken(claims *jwt.RegisteredClaims) (string, error) {
-	var t *jwt.Token
-	if claims == nil {
-		t = jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.RegisteredClaims{})
-	} else {
-		t = jwt.NewWithClaims(jwt.SigningMethodRS256, *claims)
-	}
-	token, err := t.SignedString(s.privateKey)
-	return token, errors.Wrap(err, "jwt")
-}
-
-func (s *TokensServiceImpl) GetTokens(ctx context.Context, userId uuid.UUID) (null.String, null.String, error) {
+func (s *TokensServiceImpl) CreateNewTokens(ctx context.Context, userId uuid.UUID) (null.String, null.String, error) {
 	claims, err := s.getClaims(ctx, userId)
 	if err != nil {
 		return null.String{}, null.String{}, err
 	}
 
-	accessToken, err := s.CreateToken(claims)
+	accessToken, err := s.createToken(claims)
 	if err != nil {
 		return null.String{}, null.String{}, errors.Wrap(err, "access token")
 	}
@@ -114,10 +101,19 @@ func (s *TokensServiceImpl) CheckToken(ctx context.Context, tokenString string) 
 	return s.checkClaims(ctx, claims)
 }
 
-func (s *TokensServiceImpl) validateAccessToken(tokenString, tokenIssuer string) (*jwt.Token, *jwt.RegisteredClaims, bool, error) {
-	claims := &jwt.RegisteredClaims{}
-	var token *jwt.Token
+func (s *TokensServiceImpl) createToken(claims *jwt.RegisteredClaims) (string, error) {
+	var t *jwt.Token
+	if claims == nil {
+		t = jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.RegisteredClaims{})
+	} else {
+		t = jwt.NewWithClaims(jwt.SigningMethodRS256, *claims)
+	}
+	token, err := t.SignedString(s.privateKey)
+	return token, errors.Wrap(err, "jwt")
+}
 
+func (s *TokensServiceImpl) validateAccessToken(tokenString, tokenIssuer string) (*jwt.Token, *jwt.RegisteredClaims, bool, error) {
+	var token *jwt.Token
 	token, claims, err := s.parseAccessToken(tokenString)
 
 	if err != nil {
@@ -189,31 +185,6 @@ func mapClaims(jwtClaims *jwt.MapClaims) *jwt.RegisteredClaims {
 	//TODO: check aud, exp, iat
 
 	return &registeredClaims
-}
-
-func getTokenHeader(tokenString string) (*TokenHeader, error) {
-	// token => base64UrlEncode(header) + "." + base64UrlEncode(payload) + "." + signature
-	tokenParts := strings.Split(tokenString, ".")
-	if len(tokenParts) < 1 {
-		return nil, errors.New(fmt.Sprintf("token lenght: %d", len(tokenParts)))
-	}
-
-	decodedTokenHeader, err := base64.StdEncoding.DecodeString(tokenParts[0])
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to decode token header")
-	}
-
-	var tokenHeader TokenHeader
-	err = json.Unmarshal(decodedTokenHeader, &tokenHeader)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal token header")
-	}
-
-	if tokenHeader.Alg == "" {
-		return nil, errors.New("token header alg is empty")
-	}
-
-	return &tokenHeader, nil
 }
 
 func (s *TokensServiceImpl) checkClaims(ctx context.Context, claims *jwt.RegisteredClaims) (uuid.UUID, bool, error) {

@@ -27,7 +27,7 @@ func wireAuth(e *echo.Echo) {
 	e.POST(api.ENDPOINT_AUTH_TOKEN, withValidJsonBody(controller.refreshToken), getMiddlewareFunction(constants.TimeoutRegular))
 }
 
-// @Summary Login with username
+// @Summary Login with username and password
 // @Tags auth
 // @Router /auth/login [POST]
 // @Param body body api.AuthLoginRequest true "AuthLoginRequest"
