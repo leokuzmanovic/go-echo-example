@@ -7,5 +7,5 @@ This is an example Golang REST microservice showcasing best practices for buildi
 - [Swagger](https://swagger.io/): A powerful open-source framework for API development, including a robust set of tools for API design, testing, and documentation.
 - [JWT (JSON Web Tokens)](https://jwt.io/): A standard for representing claims securely between two parties.
 - [Somber](https://github.com/alaa/somber): A lightweight dependency injection library for Go.
-- [Mockery]: Mocks were generated using https://vektra.github.io/mockery/latest/
+- [Mockery](https://vektra.github.io/mockery/latest/): For generating mocks in tests.
 
