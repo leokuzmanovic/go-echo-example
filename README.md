@@ -1,4 +1,4 @@
-# Your Golang REST Microservice
+# Golang REST Microservice
 
 This is an example Golang REST microservice showcasing best practices for building a RESTful API. The service is built using the following technologies:
 
