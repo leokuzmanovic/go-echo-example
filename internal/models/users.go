@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/gofrs/uuid"
+	"github.com/leokuzmanovic/go-echo-example/internal/utils"
 )
 
 const (
@@ -35,16 +36,18 @@ func NewUsersRepositoryImpl() *UsersRepositoryImpl {
 	p.store = make(map[uuid.UUID]User)
 	//NOTE: for testing purposes
 	user1Id := uuid.Must(uuid.FromString("00000000-0000-0000-0000-000000000001"))
+	password1, _ := utils.GeneratePassword(USER1_PASSWORD)
 	p.store[user1Id] = User{
 		Id:       user1Id,
 		Username: USER1_USERNAME,
-		Password: USER1_PASSWORD,
+		Password: password1,
 	}
 	user2Id := uuid.Must(uuid.FromString("00000000-0000-0000-0000-000000000002"))
+	password2, _ := utils.GeneratePassword(USER2_PASSWORD)
 	p.store[user2Id] = User{
 		Id:       user2Id,
 		Username: USER2_USERNAME,
-		Password: USER2_PASSWORD,
+		Password: password2,
 	}
 	return p
 }

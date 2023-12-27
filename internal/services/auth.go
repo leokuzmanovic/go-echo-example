@@ -46,7 +46,8 @@ func (s *AuthServiceImpl) Login(ctx context.Context, username, password string) 
 		return null.String{}, null.String{}, err
 	}
 
-	if password != user.Password {
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	if err != nil {
 		return null.String{}, null.String{}, &errs.InvalidCredentialsError{}
 	}
 

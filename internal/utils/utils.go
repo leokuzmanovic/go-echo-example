@@ -9,6 +9,8 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	errs "github.com/leokuzmanovic/go-echo-example/internal/errors"
+	"github.com/pkg/errors"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func PrepareBasicAuthenticationMiddleware(username, password string) echo.MiddlewareFunc {
@@ -35,4 +37,12 @@ func ParseJSON(body io.Reader, v interface{}) error {
 		return &errs.InvalidJsonError{}
 	}
 	return nil
+}
+
+func GeneratePassword(password string) (string, error) {
+	passwordHashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", errors.Wrap(err, "bcrypt")
+	}
+	return string(passwordHashed), nil
 }
